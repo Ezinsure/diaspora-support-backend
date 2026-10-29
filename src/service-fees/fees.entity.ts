@@ -12,7 +12,7 @@ const toNumber = {
   unique: true,
   where: `"deletedAt" IS NULL AND "serviceId" IS NOT NULL`,
 })
-// ...and among general fees (Postgres treats NULLs as different, so this needs its own index)
+
 @Index("UQ_service_fees_general_slug_active", ["slug"], {
   unique: true,
   where: `"deletedAt" IS NULL AND "serviceId" IS NULL`,

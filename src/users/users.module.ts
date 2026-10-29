@@ -4,9 +4,10 @@ import { UsersService } from './users.service.js';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ActivityLogsModule } from '../activityLogs/activity.module.js';
 import { User } from './user.entity.js';
+import { AuthModule } from '../auth/auth.module.js';
 
 @Module({
-imports: [TypeOrmModule.forFeature([User]), ActivityLogsModule],
+  imports: [TypeOrmModule.forFeature([User]), ActivityLogsModule, AuthModule],
   controllers: [UsersController],
   providers: [UsersService],
   exports: [UsersService],

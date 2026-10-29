@@ -10,6 +10,12 @@ import { ServicesModule } from './services/services.module.js';
 import { FaqsModule } from './faqs/faqs.module.js';
 import { CompanyModule } from './company/company.module.js';
 import { ServiceFeesModule } from './service-fees/service-fees.module.js';
+import { RequestsModule } from './requests/requests.module.js';
+import { CustomersModule } from './customers/customers.module.js';
+import { StorageModule } from './storage/storage.module.js';
+import { MailModule } from './mail/mail.module.js';
+import { AuthModule } from './auth/auth.module.js';
+
 
 @Module({
   imports: [
@@ -24,6 +30,8 @@ import { ServiceFeesModule } from './service-fees/service-fees.module.js';
         autoLoadEntities: true,
       }),
     }),
+    MailModule,
+    StorageModule,
 
     ActivityLogsModule,
     UsersModule,
@@ -31,6 +39,9 @@ import { ServiceFeesModule } from './service-fees/service-fees.module.js';
     FaqsModule,
     CompanyModule,
     ServiceFeesModule,
+    CustomersModule,
+    RequestsModule,
+    AuthModule,
   ],
   controllers: [AppController],
   providers: [AppService],

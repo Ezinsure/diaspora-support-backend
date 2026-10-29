@@ -55,7 +55,6 @@ export class CreateServiceFeeDto {
   isActive?: boolean;
 }
 
-// PATCH /service-fees/:id -> any field, including linking / unlinking a service ({ "serviceId": null })
 export class UpdateServiceFeeDto extends PartialType(CreateServiceFeeDto) {}
 
 export class ListServiceFeesQueryDto extends ListQueryDto {

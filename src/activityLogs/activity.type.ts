@@ -7,7 +7,10 @@ export enum LogAction {
   UPLOAD = "upload",
   PAYMENT = "payment",
   LOGIN = "login",
+  LOGOUT = "logout",
+  PASSWORD = "password", 
   REORDER = "reorder",
+  EMAIL = "email",
 }
 
 // To what.
@@ -15,6 +18,7 @@ export enum LogEntity {
   REQUEST = "request",
   CUSTOMER = "customer",
   QUOTATION = "quotation",
+  PROFORMA = "proforma",
   PAYMENT = "payment",
   DOCUMENT = "document",
   USER = "user",

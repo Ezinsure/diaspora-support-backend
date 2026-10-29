@@ -21,7 +21,7 @@ export class CreateUserDto {
   email: string;
 
   @Transform(phone)
-  @Matches(/^\+\d{8,15}$/, { message: "Phone must be in international format, e.g. +250788123456" })
+  @Matches(/^\+\d{8,15}$/, { message: "Phone must be in international format." })
   phoneNumber: string;
 
   @IsOptional()

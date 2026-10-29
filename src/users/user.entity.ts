@@ -25,17 +25,12 @@ export enum UserStatus {
   INACTIVE = 'inactive',
 }
 
-@Entity('users')
-@Index('UQ_users_email_active', ['email'], {
-  unique: true,
-  where: `"deletedAt" IS NULL`,
-})
-@Index('UQ_users_phone_active', ['phoneNumber'], {
-  unique: true,
-  where: `"deletedAt" IS NULL`,
-})
-@Index(['role'])
-@Index(['status'])
+// Unique among users that are NOT deleted@Entity("users")
+@Entity("users")
+@Index("UQ_users_email_active", ["email"], { unique: true, where: `"deletedAt" IS NULL` })
+@Index("UQ_users_phone_active", ["phoneNumber"], { unique: true, where: `"deletedAt" IS NULL` })
+@Index(["role"])
+@Index(["status"])
 export class User {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -54,6 +49,29 @@ export class User {
 
   @Column({ type: 'enum', enum: UserStatus, default: UserStatus.ACTIVE })
   status: UserStatus;
+
+  // Login / security
+  @Column({ type: "varchar", length: 255, nullable: true, select: false })
+  passwordHash: string | null;
+
+  @Column({ type: "timestamptz", nullable: true })
+  passwordSetAt: Date | null;
+
+  @Column({ type: "timestamptz", nullable: true })
+  lastLoginAt: Date | null;
+
+  @Column({ type: "timestamptz", nullable: true })
+  lastActiveAt: Date | null;
+
+  @Column({ type: "int", default: 0, select: false })
+  failedLoginCount: number;
+
+  @Column({ type: "timestamptz", nullable: true, select: false })
+  lockedUntil: Date | null;
+
+  // +1 on password change / deactivation 
+  @Column({ type: "int", default: 0, select: false })
+  tokenVersion: number;
 
   @Column({ type: 'uuid', nullable: true })
   createdById: string | null;

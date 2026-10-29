@@ -2,11 +2,15 @@ import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, Query
 import { ServicesService } from "./services.service.js";
 import { CreateServiceDto, ListServicesQueryDto, UpdateServiceDto } from "./service.dto.js";
 import { auditContext } from "../common/audit-context.js";
+import { UserRole } from "../users/user.entity.js";
+import { Public, Roles } from "../auth/decorators/auth.decorators.js";
 
+@Roles(UserRole.ADMIN, UserRole.HR)
 @Controller("services")
 export class ServicesController {
   constructor(private readonly services: ServicesService) {}
 
+  @Public()
   @Get()
   findAll(@Query() query: ListServicesQueryDto) {
     return this.services.findAll(query);

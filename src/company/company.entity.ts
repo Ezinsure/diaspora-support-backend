@@ -17,7 +17,6 @@ export class CompanyProfile {
   @PrimaryGeneratedColumn("uuid")
   id: string;
 
-  // Always "main" + unique -> the database itself refuses a second row
   @Column({ type: "varchar", length: 10, default: "main", unique: true, select: false })
   key: string;
 

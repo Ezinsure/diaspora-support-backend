@@ -9,5 +9,6 @@ import { ActivityLogsModule } from '../activityLogs/activity.module.js';
   imports: [TypeOrmModule.forFeature([CompanyProfile]), ActivityLogsModule],
   controllers: [CompanyController],
   providers: [CompanyService],
+  exports: [CompanyService],
 })
 export class CompanyModule {}

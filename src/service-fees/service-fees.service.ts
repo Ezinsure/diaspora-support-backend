@@ -101,7 +101,7 @@ export class ServiceFeesService {
         name: dto.name,
         slug,
         amount: dto.amount,
-        currency: dto.currency ?? "RWF",
+        currency: dto.currency ?? "USD",
         description: dto.description ?? null,
         isActive: dto.isActive ?? true,
         createdById: ctx.actorId,

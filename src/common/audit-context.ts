@@ -1,5 +1,3 @@
-// req.user is filled by the auth guard (JWT) once login exists. Until then actor fields are null.
-
 export interface AuditContext {
   actorId: string | null;
   actorName: string | null;
@@ -8,10 +6,12 @@ export interface AuditContext {
   userAgent: string | null;
 }
 
+export const clientIp = (req: any): string | null => (req?.ip ? String(req.ip).replace(/^::ffff:/, "") : null);
+
 export const auditContext = (req: any): AuditContext => ({
   actorId: req?.user?.id ?? null,
   actorName: req?.user?.names ?? null,
   actorRole: req?.user?.role ?? null,
-  ip: (req?.headers?.["x-forwarded-for"]?.split(",")[0]?.trim() || req?.ip || null) as string | null,
-  userAgent: (req?.headers?.["user-agent"] as string) ?? null,
+  ip: clientIp(req),
+  userAgent: req?.headers?.["user-agent"] ? String(req.headers["user-agent"]).slice(0, 255) : null,
 });
