@@ -1,18 +1,42 @@
-import { BadRequestException, ConflictException, Injectable, NotFoundException } from "@nestjs/common";
-import { InjectRepository } from "@nestjs/typeorm";
-import { DataSource, EntityManager, Repository } from "typeorm";
-import { ServiceFee } from "./fees.entity.js";
-import { Service } from "../services/service.entity.js";
-import { CreateServiceFeeDto, ListServiceFeesQueryDto, UpdateServiceFeeDto } from "./fees.dto.js";
-import { ActivityLogsService } from "../activityLogs/activty.service.js";
-import { LogAction, LogEntity } from "../activityLogs/activity.type.js";
-import type { AuditContext } from "../common/audit-context.js";
-import { withPeople } from "../common/audited.entity.js";
-import { applyDateRange, isUniqueViolation, likeTerm, paginated, slugify } from "../common/query.js";
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { DataSource, EntityManager, Repository } from 'typeorm';
+import { ServiceFee } from './fees.entity.js';
+import { Service } from '../services/service.entity.js';
+import {
+  CreateServiceFeeDto,
+  ListServiceFeesQueryDto,
+  UpdateServiceFeeDto,
+} from './fees.dto.js';
+import { ActivityLogsService } from '../activityLogs/activty.service.js';
+import { LogAction, LogEntity } from '../activityLogs/activity.type.js';
+import type { AuditContext } from '../common/audit-context.js';
+import { withPeople } from '../common/audited.entity.js';
+import {
+  applyDateRange,
+  isUniqueViolation,
+  likeTerm,
+  paginated,
+  slugify,
+} from '../common/query.js';
 
-const TRACKED = ["serviceId", "name", "amount", "currency", "description", "isActive"];
-const money = (amount: number, currency: string) => `${currency} ${Number(amount).toLocaleString("en-US")}`;
-const label = (name: string, serviceName?: string | null) => (serviceName ? `"${name}" (${serviceName})` : `"${name}" (general)`);
+const TRACKED = [
+  'serviceId',
+  'name',
+  'amount',
+  'currency',
+  'description',
+  'isActive',
+];
+const money = (amount: number, currency: string) =>
+  `${currency} ${Number(amount).toLocaleString('en-US')}`;
+const label = (name: string, serviceName?: string | null) =>
+  serviceName ? `"${name}" (${serviceName})` : `"${name}" (general)`;
 
 @Injectable()
 export class ServiceFeesService {
@@ -22,35 +46,44 @@ export class ServiceFeesService {
     private readonly logs: ActivityLogsService,
   ) {}
 
-
   private query() {
-    return withPeople(this.repo.createQueryBuilder("fee"), "fee")
-      .leftJoin("fee.service", "service")
-      .addSelect(["service.id", "service.name", "service.isActive"]);
+    return withPeople(this.repo.createQueryBuilder('fee'), 'fee')
+      .leftJoin('fee.service', 'service')
+      .addSelect(['service.id', 'service.name', 'service.isActive']);
   }
 
   async findAll(q: ListServiceFeesQueryDto) {
-    if (q.minAmount !== undefined && q.maxAmount !== undefined && q.minAmount > q.maxAmount) {
-      throw new BadRequestException("minAmount must be less than maxAmount");
+    if (
+      q.minAmount !== undefined &&
+      q.maxAmount !== undefined &&
+      q.minAmount > q.maxAmount
+    ) {
+      throw new BadRequestException('minAmount must be less than maxAmount');
     }
-
     const qb = this.query();
-
     if (q.search?.trim()) {
-      qb.andWhere("(fee.name ILIKE :s OR fee.description ILIKE :s OR service.name ILIKE :s)", { s: likeTerm(q.search) });
+      qb.andWhere(
+        '(fee.name ILIKE :s OR fee.description ILIKE :s OR service.name ILIKE :s)',
+        { s: likeTerm(q.search) },
+      );
     }
-    if (q.serviceId === "none") qb.andWhere("fee.serviceId IS NULL");
-    else if (q.serviceId) qb.andWhere("fee.serviceId = :serviceId", { serviceId: q.serviceId });
-    if (q.currency) qb.andWhere("fee.currency = :currency", { currency: q.currency });
-    if (q.isActive !== undefined) qb.andWhere("fee.isActive = :isActive", { isActive: q.isActive });
-    if (q.minAmount !== undefined) qb.andWhere("fee.amount >= :min", { min: q.minAmount });
-    if (q.maxAmount !== undefined) qb.andWhere("fee.amount <= :max", { max: q.maxAmount });
-    applyDateRange(qb, "fee.createdAt", q.from, q.to);
+    if (q.serviceId === 'none') qb.andWhere('fee.serviceId IS NULL');
+    else if (q.serviceId)
+      qb.andWhere('fee.serviceId = :serviceId', { serviceId: q.serviceId });
+    if (q.currency)
+      qb.andWhere('fee.currency = :currency', { currency: q.currency });
+    if (q.isActive !== undefined)
+      qb.andWhere('fee.isActive = :isActive', { isActive: q.isActive });
+    if (q.minAmount !== undefined)
+      qb.andWhere('fee.amount >= :min', { min: q.minAmount });
+    if (q.maxAmount !== undefined)
+      qb.andWhere('fee.amount <= :max', { max: q.maxAmount });
+    applyDateRange(qb, 'fee.createdAt', q.from, q.to);
 
-    const order = q.order?.toUpperCase() === "ASC" ? "ASC" : "DESC";
+    const order = q.order?.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
     const [data, total] = await qb
       .orderBy(`fee.${q.sortBy}`, order)
-      .addOrderBy("fee.id", "DESC")
+      .addOrderBy('fee.id', 'DESC')
       .skip((q.page - 1) * q.limit)
       .take(q.limit)
       .getManyAndCount();
@@ -58,40 +91,76 @@ export class ServiceFeesService {
     return paginated(data, total, q.page, q.limit);
   }
 
-  // Website / request form: active fees. General fees first, then per active service.
+  // Website
   async findPublic(serviceId?: string) {
     const qb = this.repo
-      .createQueryBuilder("fee")
-      .leftJoin("fee.service", "service")
-      .addSelect(["service.id", "service.name"])
-      .where("fee.isActive = true")
-      .andWhere("(fee.serviceId IS NULL OR service.isActive = true)");
+      .createQueryBuilder('fee')
+      .innerJoin('fee.service', 'service') // fees without a service are not shown
+      .addSelect(['service.id', 'service.name'])
+      .where('fee.isActive = true AND service.isActive = true');
 
-    // For one service: its fees + the general ones
-    if (serviceId) qb.andWhere("(fee.serviceId = :serviceId OR fee.serviceId IS NULL)", { serviceId });
+    if (serviceId) qb.andWhere('fee.serviceId = :serviceId', { serviceId });
 
-    const fees = await qb.orderBy("service.name", "ASC", "NULLS FIRST").addOrderBy("fee.amount", "ASC").getMany();
+    const fees = await qb
+      .orderBy('service.name', 'ASC')
+      .addOrderBy('fee.amount', 'ASC')
+      .getMany();
 
-    const groups = new Map<string, any>();
+    const groups = new Map<
+      string,
+      { serviceId: string; serviceName: string; fees: any[] }
+    >();
     for (const f of fees) {
-      const key = f.serviceId ?? "general";
-      const g = groups.get(key) ?? { serviceId: f.serviceId, serviceName: f.service?.name ?? null, fees: [] };
-      g.fees.push({ id: f.id, name: f.name, amount: f.amount, currency: f.currency, description: f.description });
-      groups.set(key, g);
+      const g = groups.get(f.serviceId!) ?? {
+        serviceId: f.serviceId!,
+        serviceName: f.service!.name,
+        fees: [],
+      };
+      g.fees.push({
+        id: f.id,
+        name: f.name,
+        amount: f.amount,
+        currency: f.currency,
+        description: f.description,
+      });
+      groups.set(f.serviceId!, g);
     }
     return [...groups.values()];
   }
 
-  async findOne(id: string) {
-    const fee = await this.query().where("fee.id = :id", { id }).getOne();
-    if (!fee) throw new NotFoundException("Service fee not found");
+  // Website: one active fee
+  async findPublicOne(id: string) {
+    const fee = await this.repo
+      .createQueryBuilder('fee')
+      .innerJoin('fee.service', 'service')
+      .select([
+        'fee.id',
+        'fee.name',
+        'fee.amount',
+        'fee.currency',
+        'fee.description',
+      ])
+      .where(
+        'fee.id = :id AND fee.isActive = true AND service.isActive = true',
+        { id },
+      )
+      .getOne();
+
+    if (!fee) throw new NotFoundException('Fee not found');
     return fee;
   }
 
+  async findOne(id: string) {
+    const fee = await this.query().where('fee.id = :id', { id }).getOne();
+    if (!fee) throw new NotFoundException('Service fee not found');
+    return fee;
+  }
 
   async create(dto: CreateServiceFeeDto, ctx: AuditContext) {
     const id = await this.write(async (em) => {
-      const service = dto.serviceId ? await this.findService(em, dto.serviceId) : null;
+      const service = dto.serviceId
+        ? await this.findService(em, dto.serviceId)
+        : null;
 
       const slug = this.slugOrFail(dto.name);
       await this.assertNameFree(em, service?.id ?? null, slug);
@@ -101,7 +170,7 @@ export class ServiceFeesService {
         name: dto.name,
         slug,
         amount: dto.amount,
-        currency: dto.currency ?? "USD",
+        currency: dto.currency ?? 'USD',
         description: dto.description ?? null,
         isActive: dto.isActive ?? true,
         createdById: ctx.actorId,
@@ -128,24 +197,35 @@ export class ServiceFeesService {
   async update(id: string, dto: UpdateServiceFeeDto, ctx: AuditContext) {
     await this.write(async (em) => {
       const fee = await em.findOne(ServiceFee, { where: { id } });
-      if (!fee) throw new NotFoundException("Service fee not found");
+      if (!fee) throw new NotFoundException('Service fee not found');
 
       const patch: any = { ...dto };
 
       // Link / change / unlink the service
       let serviceName: string | null = null;
       if (dto.serviceId !== undefined) {
-        const service = dto.serviceId ? await this.findService(em, dto.serviceId) : null;
+        const service = dto.serviceId
+          ? await this.findService(em, dto.serviceId)
+          : null;
         patch.serviceId = service?.id ?? null;
         serviceName = service?.name ?? null;
       } else if (fee.serviceId) {
-        serviceName = (await em.findOne(Service, { where: { id: fee.serviceId }, withDeleted: true }))?.name ?? null;
+        serviceName =
+          (
+            await em.findOne(Service, {
+              where: { id: fee.serviceId },
+              withDeleted: true,
+            })
+          )?.name ?? null;
       }
 
       // Duplicate check when the name or the service changes
-      const nextServiceId = patch.serviceId !== undefined ? patch.serviceId : fee.serviceId;
-      const nextSlug = dto.name !== undefined ? this.slugOrFail(dto.name) : fee.slug;
-      if (nextSlug !== fee.slug || nextServiceId !== fee.serviceId) await this.assertNameFree(em, nextServiceId, nextSlug, fee.id);
+      const nextServiceId =
+        patch.serviceId !== undefined ? patch.serviceId : fee.serviceId;
+      const nextSlug =
+        dto.name !== undefined ? this.slugOrFail(dto.name) : fee.slug;
+      if (nextSlug !== fee.slug || nextServiceId !== fee.serviceId)
+        await this.assertNameFree(em, nextServiceId, nextSlug, fee.id);
       patch.slug = nextSlug;
 
       const changes = this.logs.diff(fee, patch, TRACKED);
@@ -154,8 +234,8 @@ export class ServiceFeesService {
       Object.assign(fee, patch, { updatedById: ctx.actorId });
       await em.save(fee);
 
-      const priceChange = changes.find((c) => c.field === "amount");
-      const linkChange = changes.find((c) => c.field === "serviceId");
+      const priceChange = changes.find((c) => c.field === 'amount');
+      const linkChange = changes.find((c) => c.field === 'serviceId');
       await this.logs.log(
         ctx,
         {
@@ -180,15 +260,23 @@ export class ServiceFeesService {
 
   async remove(id: string, ctx: AuditContext) {
     await this.write(async (em) => {
-      const fee = await em.findOne(ServiceFee, { where: { id }, relations: { service: true } });
-      if (!fee) throw new NotFoundException("Service fee not found");
+      const fee = await em.findOne(ServiceFee, {
+        where: { id },
+        relations: { service: true },
+      });
+      if (!fee) throw new NotFoundException('Service fee not found');
 
       await em.update(ServiceFee, fee.id, { deletedById: ctx.actorId });
       await em.softDelete(ServiceFee, fee.id);
 
       await this.logs.log(
         ctx,
-        { action: LogAction.DELETE, entity: LogEntity.SERVICE_FEE, entityId: fee.id, summary: `Deleted fee ${label(fee.name, fee.service?.name)}` },
+        {
+          action: LogAction.DELETE,
+          entity: LogEntity.SERVICE_FEE,
+          entityId: fee.id,
+          summary: `Deleted fee ${label(fee.name, fee.service?.name)}`,
+        },
         em,
       );
     });
@@ -202,34 +290,47 @@ export class ServiceFeesService {
     try {
       return await this.dataSource.transaction(work);
     } catch (err) {
-      if (isUniqueViolation(err)) throw new ConflictException("A fee with this name already exists");
+      if (isUniqueViolation(err))
+        throw new ConflictException('A fee with this name already exists');
       throw err;
     }
   }
 
   private async findService(em: EntityManager, id: string) {
     const service = await em.findOne(Service, { where: { id } });
-    if (!service) throw new NotFoundException("Service not found");
+    if (!service) throw new NotFoundException('Service not found');
     return service;
   }
 
   private slugOrFail(name: string) {
     const slug = slugify(name);
-    if (!slug) throw new BadRequestException("The fee name must contain letters or numbers");
+    if (!slug)
+      throw new BadRequestException(
+        'The fee name must contain letters or numbers',
+      );
     return slug;
   }
 
   // Same name not allowed twice for one service, nor twice among general fees
-  private async assertNameFree(em: EntityManager, serviceId: string | null, slug: string, exceptId?: string) {
-    const qb = em.createQueryBuilder(ServiceFee, "fee").where("fee.slug = :slug", { slug });
-    if (serviceId) qb.andWhere("fee.serviceId = :serviceId", { serviceId });
-    else qb.andWhere("fee.serviceId IS NULL");
-    if (exceptId) qb.andWhere("fee.id != :exceptId", { exceptId });
+  private async assertNameFree(
+    em: EntityManager,
+    serviceId: string | null,
+    slug: string,
+    exceptId?: string,
+  ) {
+    const qb = em
+      .createQueryBuilder(ServiceFee, 'fee')
+      .where('fee.slug = :slug', { slug });
+    if (serviceId) qb.andWhere('fee.serviceId = :serviceId', { serviceId });
+    else qb.andWhere('fee.serviceId IS NULL');
+    if (exceptId) qb.andWhere('fee.id != :exceptId', { exceptId });
 
     const existing = await qb.getOne();
     if (existing) {
       throw new ConflictException(
-        serviceId ? `This service already has a fee named "${existing.name}"` : `A general fee named "${existing.name}" already exists`,
+        serviceId
+          ? `This service already has a fee named "${existing.name}"`
+          : `A general fee named "${existing.name}" already exists`,
       );
     }
   }

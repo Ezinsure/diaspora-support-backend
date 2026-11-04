@@ -19,14 +19,15 @@ import {
 } from './company.dto.js';
 import { auditContext } from '../common/audit-context.js';
 import { UserRole } from '../users/user.entity.js';
-import { Roles } from '../auth/decorators/auth.decorators.js';
+import { Public, Roles } from '../auth/decorators/auth.decorators.js';
 
 const LOGO_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml'];
-Roles(UserRole.ADMIN, UserRole.HR)
+Roles(UserRole.ADMIN, UserRole.HR);
 @Controller('company-profile')
 export class CompanyController {
   constructor(private readonly company: CompanyService) {}
 
+  @Public()
   @Get()
   get() {
     return this.company.get();

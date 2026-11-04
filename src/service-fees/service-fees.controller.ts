@@ -1,12 +1,27 @@
-import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, Query, Req } from "@nestjs/common";
-import { ServiceFeesService } from "./service-fees.service.js";
-import { CreateServiceFeeDto, ListServiceFeesQueryDto, UpdateServiceFeeDto } from "./fees.dto.js";
-import { auditContext } from "../common/audit-context.js";
-import { UserRole } from "../users/user.entity.js";
-import { Roles } from "../auth/decorators/auth.decorators.js";
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+  Query,
+  Req,
+} from '@nestjs/common';
+import { ServiceFeesService } from './service-fees.service.js';
+import {
+  CreateServiceFeeDto,
+  ListServiceFeesQueryDto,
+  UpdateServiceFeeDto,
+} from './fees.dto.js';
+import { auditContext } from '../common/audit-context.js';
+import { UserRole } from '../users/user.entity.js';
+import { Public, Roles } from '../auth/decorators/auth.decorators.js';
 
-Roles(UserRole.ADMIN)
-@Controller("service-fees")
+Roles(UserRole.ADMIN);
+@Controller('service-fees')
 export class ServiceFeesController {
   constructor(private readonly fees: ServiceFeesService) {}
 
@@ -15,14 +30,25 @@ export class ServiceFeesController {
     return this.fees.findAll(query);
   }
 
-  // Website 
-  @Get("public")
-  findPublic(@Query("serviceId", new ParseUUIDPipe({ optional: true })) serviceId?: string) {
+  // Website
+  @Public()
+  @Get('public')
+  findPublic(
+    @Query('serviceId', new ParseUUIDPipe({ optional: true }))
+    serviceId?: string,
+  ) {
     return this.fees.findPublic(serviceId);
   }
 
-  @Get(":id")
-  findOne(@Param("id", ParseUUIDPipe) id: string) {
+  // Website
+  @Public()
+  @Get('public/:id')
+  findPublicOne(@Param('id', ParseUUIDPipe) id: string) {
+    return this.fees.findPublicOne(id);
+  }
+
+  @Get(':id')
+  findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.fees.findOne(id);
   }
 
@@ -31,14 +57,18 @@ export class ServiceFeesController {
     return this.fees.create(dto, auditContext(req));
   }
 
-  // Also activate 
-  @Patch(":id")
-  update(@Param("id", ParseUUIDPipe) id: string, @Body() dto: UpdateServiceFeeDto, @Req() req: any) {
+  // Also activate
+  @Patch(':id')
+  update(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateServiceFeeDto,
+    @Req() req: any,
+  ) {
     return this.fees.update(id, dto, auditContext(req));
   }
 
-  @Delete(":id")
-  remove(@Param("id", ParseUUIDPipe) id: string, @Req() req: any) {
+  @Delete(':id')
+  remove(@Param('id', ParseUUIDPipe) id: string, @Req() req: any) {
     return this.fees.remove(id, auditContext(req));
   }
 }

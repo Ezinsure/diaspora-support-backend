@@ -6,7 +6,6 @@ import { numeric, RequestSource, RequestStatus, type Proforma } from "./request.
 import type { RequestDocument } from "./request-docs.entity.js";
 import type { Payment } from "./payment.entity.js";
 
-// "Request" is already a name in Express, so the class is ServiceRequest; the table is "requests".
 @Entity("requests")
 @Index(["status"])
 @Index(["createdAt"])
