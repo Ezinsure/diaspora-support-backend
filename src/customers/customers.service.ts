@@ -1,17 +1,32 @@
-import { ConflictException, Injectable, NotFoundException } from "@nestjs/common";
-import { InjectRepository } from "@nestjs/typeorm";
-import { DataSource, EntityManager, Repository } from "typeorm";
-import { Customer } from "./customers.entity.js";
-import { ListCustomersQueryDto, UpdateCustomerDto } from "./customers.dto.js";
-import { ActivityLogsService } from "../activityLogs/activty.service.js";
-import { LogAction, LogEntity } from "../activityLogs/activity.type.js";
-import type { AuditContext } from "../common/audit-context.js";
-import { withPeople } from "../common/audited.entity.js";
-import { applyDateRange, isUniqueViolation, likeTerm, paginated } from "../common/query.js";
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { DataSource, EntityManager, Repository } from 'typeorm';
+import { Customer } from './customers.entity.js';
+import { ListCustomersQueryDto, UpdateCustomerDto } from './customers.dto.js';
+import { ActivityLogsService } from '../activityLogs/activty.service.js';
+import { LogAction, LogEntity } from '../activityLogs/activity.type.js';
+import type { AuditContext } from '../common/audit-context.js';
+import { withPeople } from '../common/audited.entity.js';
+import {
+  applyDateRange,
+  isUniqueViolation,
+  likeTerm,
+  paginated,
+} from '../common/query.js';
 
-const TRACKED = ["firstName", "lastName", "email", "phone", "country", "timezone"];
+const TRACKED = [
+  'firstName',
+  'lastName',
+  'email',
+  'phone',
+  'country',
+  'timezone',
+];
 
-// Per-customer numbers, computed from their requests
 const STATS_SQL = `
   SELECT r."customerId",
          COUNT(*)::int AS "requestCount",
@@ -41,11 +56,15 @@ export class CustomersService {
     private readonly logs: ActivityLogsService,
   ) {}
 
-  // Used by requests: same email = same customer. Their details are refreshed with the latest form.
-  async findOrCreate(em: EntityManager, input: CustomerInput, ctx: AuditContext) {
+  // Used by requests: same email = same customer.
+  async findOrCreate(
+    em: EntityManager,
+    input: CustomerInput,
+    ctx: AuditContext,
+  ) {
     const existing = await em
-      .createQueryBuilder(Customer, "customer")
-      .where("LOWER(customer.email) = LOWER(:email)", { email: input.email })
+      .createQueryBuilder(Customer, 'customer')
+      .where('LOWER(customer.email) = LOWER(:email)', { email: input.email })
       .getOne();
 
     if (existing) {
@@ -62,7 +81,13 @@ export class CustomersService {
         await em.save(existing);
         await this.logs.log(
           ctx,
-          { action: LogAction.UPDATE, entity: LogEntity.CUSTOMER, entityId: existing.id, summary: `Updated details of ${existing.firstName} ${existing.lastName} from a new request`, changes },
+          {
+            action: LogAction.UPDATE,
+            entity: LogEntity.CUSTOMER,
+            entityId: existing.id,
+            summary: `Updated details of ${existing.firstName} ${existing.lastName} from a new request`,
+            changes,
+          },
           em,
         );
       }
@@ -80,7 +105,12 @@ export class CustomersService {
     await em.save(customer);
     await this.logs.log(
       ctx,
-      { action: LogAction.CREATE, entity: LogEntity.CUSTOMER, entityId: customer.id, summary: `New customer ${customer.firstName} ${customer.lastName} (${customer.email})` },
+      {
+        action: LogAction.CREATE,
+        entity: LogEntity.CUSTOMER,
+        entityId: customer.id,
+        summary: `New customer ${customer.firstName} ${customer.lastName} (${customer.email})`,
+      },
       em,
     );
     return customer;
@@ -88,8 +118,8 @@ export class CustomersService {
 
   // GET /customers
   async findAll(q: ListCustomersQueryDto) {
-    const qb = withPeople(this.repo.createQueryBuilder("customer"), "customer")
-      .leftJoin(`(${STATS_SQL})`, "stats", `stats."customerId" = customer.id`)
+    const qb = withPeople(this.repo.createQueryBuilder('customer'), 'customer')
+      .leftJoin(`(${STATS_SQL})`, 'stats', `stats."customerId" = customer.id`)
       .addSelect([
         `COALESCE(stats."requestCount", 0) AS "requestCount"`,
         `COALESCE(stats."openCount", 0) AS "openCount"`,
@@ -106,59 +136,104 @@ export class CustomersService {
         { s: likeTerm(q.search) },
       );
     }
-    if (q.country?.trim()) qb.andWhere("customer.country ILIKE :country", { country: q.country.trim() });
-    if (q.activity === "open") qb.andWhere(`COALESCE(stats."openCount", 0) > 0`);
-    if (q.activity === "to_pay") qb.andWhere(`COALESCE(stats."balance", 0) > 0`);
-    applyDateRange(qb, "customer.createdAt", q.from, q.to);
+    if (q.country?.trim())
+      qb.andWhere('customer.country ILIKE :country', {
+        country: q.country.trim(),
+      });
+    if (q.activity === 'open')
+      qb.andWhere(`COALESCE(stats."openCount", 0) > 0`);
+    if (q.activity === 'to_pay')
+      qb.andWhere(`COALESCE(stats."balance", 0) > 0`);
+    if (q.activity === 'none')
+      qb.andWhere(`COALESCE(stats."requestCount", 0) = 0`);
+    applyDateRange(qb, 'customer.createdAt', q.from, q.to);
 
-    const order = q.order?.toUpperCase() === "ASC" ? "ASC" : "DESC";
+    const order = q.order?.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
     const sortColumn: Record<string, string> = {
-      createdAt: "customer.createdAt",
-      lastName: "customer.lastName",
+      createdAt: 'customer.createdAt',
+      lastName: 'customer.lastName',
       lastRequestAt: `"lastRequestAt"`,
       requestCount: `"requestCount"`,
     };
-    qb.orderBy(sortColumn[q.sortBy] ?? "customer.createdAt", order, "NULLS LAST").addOrderBy("customer.id", "DESC");
+    qb.orderBy(
+      sortColumn[q.sortBy] ?? 'customer.createdAt',
+      order,
+      'NULLS LAST',
+    ).addOrderBy('customer.id', 'DESC');
 
     const total = await qb.getCount();
-    const { entities, raw } = await qb.offset((q.page - 1) * q.limit).limit(q.limit).getRawAndEntities();
+    const { entities, raw } = await qb
+      .offset((q.page - 1) * q.limit)
+      .limit(q.limit)
+      .getRawAndEntities();
 
-    const data = (entities as Customer[]).map((customer: Customer, i: number) => ({
-      ...customer,
-      requestCount: Number(raw[i]?.requestCount ?? 0),
-      openCount: Number(raw[i]?.openCount ?? 0),
-      totalPaid: Number(raw[i]?.totalPaid ?? 0),
-      balance: Number(raw[i]?.balance ?? 0),
-      lastRequestAt: raw[i]?.lastRequestAt ?? null,
-    }));
+    const data = (entities as Customer[]).map(
+      (customer: Customer, i: number) => ({
+        ...customer,
+        requestCount: Number(raw[i]?.requestCount ?? 0),
+        openCount: Number(raw[i]?.openCount ?? 0),
+        totalPaid: Number(raw[i]?.totalPaid ?? 0),
+        balance: Number(raw[i]?.balance ?? 0),
+        lastRequestAt: raw[i]?.lastRequestAt ?? null,
+      }),
+    );
 
     return paginated(data, total, q.page, q.limit);
   }
 
-  // GET /customers/:id -> customer + their requests (newest first)
+  // GET /customers/stats
+  async stats() {
+    const [row] = await this.dataSource.query(`
+    SELECT COUNT(*)::int AS "total",
+           COUNT(*) FILTER (WHERE COALESCE(s."openCount", 0) > 0)::int AS "active",
+           COUNT(*) FILTER (
+             WHERE c."createdAt" >= (date_trunc('month', NOW() AT TIME ZONE 'Africa/Kigali') AT TIME ZONE 'Africa/Kigali')
+           )::int AS "newThisMonth",
+           COALESCE(SUM(s."totalPaid"), 0)::float AS "totalPaid"
+      FROM customers c
+      LEFT JOIN (${STATS_SQL}) s ON s."customerId" = c.id
+     WHERE c."deletedAt" IS NULL`);
+    return {
+      total: Number(row?.total ?? 0),
+      active: Number(row?.active ?? 0),
+      newThisMonth: Number(row?.newThisMonth ?? 0),
+      totalPaid: Number(row?.totalPaid ?? 0),
+    };
+  }
+
+  // GET / customer + their requests
   async findOne(id: string) {
-    const customer = await withPeople(this.repo.createQueryBuilder("customer"), "customer")
-      .leftJoinAndSelect("customer.requests", "request")
-      .where("customer.id = :id", { id })
-      .orderBy("request.createdAt", "DESC")
+    const customer = await withPeople(
+      this.repo.createQueryBuilder('customer'),
+      'customer',
+    )
+      .leftJoinAndSelect('customer.requests', 'request')
+      .where('customer.id = :id', { id })
+      .orderBy('request.createdAt', 'DESC')
       .getOne();
-    if (!customer) throw new NotFoundException("Customer not found");
+    if (!customer) throw new NotFoundException('Customer not found');
     return customer;
   }
 
-  // PATCH /customers/:id
+  // PATCH
   async update(id: string, dto: UpdateCustomerDto, ctx: AuditContext) {
     try {
       await this.dataSource.transaction(async (em) => {
         const customer = await em.findOne(Customer, { where: { id } });
-        if (!customer) throw new NotFoundException("Customer not found");
+        if (!customer) throw new NotFoundException('Customer not found');
 
         if (dto.email && dto.email !== customer.email) {
           const taken = await em
-            .createQueryBuilder(Customer, "c")
-            .where("LOWER(c.email) = LOWER(:email) AND c.id != :id", { email: dto.email, id })
+            .createQueryBuilder(Customer, 'c')
+            .where('LOWER(c.email) = LOWER(:email) AND c.id != :id', {
+              email: dto.email,
+              id,
+            })
             .getExists();
-          if (taken) throw new ConflictException("Another customer already uses this email");
+          if (taken)
+            throw new ConflictException(
+              'Another customer already uses this email',
+            );
         }
 
         const changes = this.logs.diff(customer, dto, TRACKED);
@@ -168,12 +243,19 @@ export class CustomersService {
         await em.save(customer);
         await this.logs.log(
           ctx,
-          { action: LogAction.UPDATE, entity: LogEntity.CUSTOMER, entityId: customer.id, summary: `Updated customer ${customer.firstName} ${customer.lastName}`, changes },
+          {
+            action: LogAction.UPDATE,
+            entity: LogEntity.CUSTOMER,
+            entityId: customer.id,
+            summary: `Updated customer ${customer.firstName} ${customer.lastName}`,
+            changes,
+          },
           em,
         );
       });
     } catch (err) {
-      if (isUniqueViolation(err)) throw new ConflictException("Another customer already uses this email");
+      if (isUniqueViolation(err))
+        throw new ConflictException('Another customer already uses this email');
       throw err;
     }
     return this.findOne(id);

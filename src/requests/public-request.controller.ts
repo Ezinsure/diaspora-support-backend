@@ -1,29 +1,33 @@
-import { Body, Controller, Get, Headers, HttpCode, Param, Post, Req } from "@nestjs/common";
+import { BadRequestException, Body, Controller, Get, Headers, HttpCode, Param, Post, Req, UploadedFiles, UseInterceptors } from "@nestjs/common";
 import { RequestsService } from "./requests.service.js";
 import { PublicAccessService } from "./public-access.service.js";
 import { RequestSource } from "./request.types.js";
-import { auditContext } from "../common/audit-context.js";
-import { RequestAccessCodeDto, SubmitRequestDto, TrackRequestDto, VerifyAccessCodeDto } from "./request.dto.js";
+import { auditContext, clientIp } from "../common/audit-context.js";
+import { PublicUploadDocumentsDto, RequestAccessCodeDto, SubmitRequestDto, TrackRequestDto, VerifyAccessCodeDto } from "./request.dto.js";
+import { Public } from "../auth/decorators/auth.decorators.js";
+import { ALLOWED_TYPES, DocumentsService, MAX_FILE_MB, MAX_FILES } from "./document.service.js";
+import { FilesInterceptor } from "@nestjs/platform-express";
+import { RequestNotificationsService } from "./request-notifi.service.js";
 
-// Customer side: no login. Will stay open when the admin routes get protected.
+// Customer side: no login.
+@Public()
 @Controller("public/requests")
 export class PublicRequestsController {
   constructor(
     private readonly requests: RequestsService,
     private readonly access: PublicAccessService,
+    private readonly documents: DocumentsService,
+     private readonly notify: RequestNotificationsService,
   ) {}
 
-  // Services for the form's dropdown
   @Get("services")
   services() {
     return this.access.formServices();
   }
 
-  // Send the form -> request created (pending) + emails to the customer and the team
   @Post()
   async submit(@Body() dto: SubmitRequestDto, @Req() req: any) {
     const request = await this.requests.create(dto, auditContext(req), RequestSource.WEBSITE);
-    // Only what the customer needs back
     return {
       reference: request.reference,
       status: request.status,
@@ -32,7 +36,6 @@ export class PublicRequestsController {
     };
   }
 
-  // { reference, email } -> that one request
   @Post("track")
   @HttpCode(200)
   track(@Body() dto: TrackRequestDto) {
@@ -46,6 +49,31 @@ export class PublicRequestsController {
     return this.access.sendCode(dto.email);
   }
 
+    // The customer sends documents. multipart/form-data: reference, email, label?, files (1-10)
+  @Post("documents")
+  @UseInterceptors(
+    FilesInterceptor("files", MAX_FILES, {
+      limits: { fileSize: MAX_FILE_MB * 1024 * 1024 },
+      fileFilter: (_req: any, file: any, cb: any) =>
+        ALLOWED_TYPES.includes(file.mimetype)
+          ? cb(null, true)
+          : cb(new BadRequestException(`"${file.originalname}" is not allowed. Use PDF, JPG, PNG, WEBP or Word.`), false),
+    }),
+  )
+  async uploadDocuments(@UploadedFiles() files: any[], @Body() dto: PublicUploadDocumentsDto, @Req() req: any) {
+    if (!files?.length) throw new BadRequestException("Choose at least one file");
+    const reference = dto.reference.toUpperCase();
+    const request = await this.access.findForUpload(reference, dto.email, clientIp(req), files.length);
+        await this.documents.upload(request.id, files, dto.label, auditContext(req));
+    void this.notify.customerUploaded(
+      request.id,
+      files.map((f) => ({ name: f.originalname, size: f.size })),
+      dto.label,
+    );
+
+    return this.access.track(reference, dto.email);
+  }
+
   // { email, code } -> { token, expiresAt, requests }
   @Post("verify-code")
   @HttpCode(200)
@@ -53,7 +81,7 @@ export class PublicRequestsController {
     return this.access.verifyCode(dto.email, dto.code);
   }
 
-  // Header: Authorization: Bearer <token>
+
   @Get("mine")
   mine(@Headers("authorization") authorization?: string) {
     return this.access.listFor(this.access.emailFromToken(authorization));

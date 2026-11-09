@@ -10,12 +10,13 @@ export enum PaymentMethod {
   BANK_TRANSFER = "bank_transfer",
   CARD = "card",
   CASH = "cash",
+  IREMBOPAY = "irembopay",
   OTHER = "other",
 }
 
 export enum RequestSource {
   WEBSITE = "website", // customer filled the public form
-  ADMIN = "admin", // staff created it (email / WhatsApp / call)
+  ADMIN = "admin", // staff created it 
 }
 
 // Allowed status moves. Payment moves pending -> in_progress automatically.
@@ -41,6 +42,7 @@ export const METHOD_LABEL: Record<PaymentMethod, string> = {
   [PaymentMethod.BANK_TRANSFER]: "Bank transfer",
   [PaymentMethod.CARD]: "Card",
   [PaymentMethod.CASH]: "Cash",
+  [PaymentMethod.IREMBOPAY]: "IremboPay",
   [PaymentMethod.OTHER]: "Other",
 };
 
@@ -48,6 +50,7 @@ export interface ProformaItem {
   description: string;
   quantity: number;
   unitPrice: number;
+  feeId?: string | null;
 }
 
 // Stored as JSON on the request

@@ -1,7 +1,5 @@
 import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn } from "typeorm";
 
-// One-time code emailed to a customer so they can see their requests without an account.
-// Only a hash is stored, never the code itself.
 @Entity("access_codes")
 @Index(["email", "createdAt"])
 export class AccessCode {

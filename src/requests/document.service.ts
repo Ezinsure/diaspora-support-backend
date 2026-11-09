@@ -21,7 +21,6 @@ export const ALLOWED_TYPES = [
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
 ];
 
-// "My Passport (1).PDF" -> "my-passport-1.pdf"
 const safeName = (name: string) => {
   const dot = name.lastIndexOf(".");
   const base = (dot > 0 ? name.slice(0, dot) : name).normalize("NFKD").replace(/[^\w-]+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "").toLowerCase();
@@ -48,7 +47,7 @@ export class DocumentsService {
       .getMany();
   }
 
-  // files come from multer (memory): { originalname, mimetype, size, buffer }
+  // files come from multer (memory)
   async upload(requestId: string, files: any[], label: string | null | undefined, ctx: AuditContext) {
     if (!files?.length) throw new BadRequestException("Choose at least one file");
 
@@ -56,7 +55,6 @@ export class DocumentsService {
     if (!request) throw new NotFoundException("Request not found");
     if (isClosed(request.status)) throw new BadRequestException("This request is closed: documents can't be added");
 
-    // 1. Upload to storage first
     const uploaded: { file: any; path: string }[] = [];
     try {
       for (const file of files) {
@@ -65,11 +63,10 @@ export class DocumentsService {
         uploaded.push({ file, path });
       }
     } catch (err) {
-      await this.storage.remove(uploaded.map((u) => u.path)); // don't leave half an upload behind
+      await this.storage.remove(uploaded.map((u) => u.path));
       throw err;
     }
 
-    // 2. Then save the rows (if this fails, remove the files again)
     try {
       await this.dataSource.transaction(async (em) => {
         for (const { file, path } of uploaded) {

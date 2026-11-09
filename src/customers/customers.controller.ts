@@ -3,16 +3,19 @@ import { CustomersService } from "./customers.service.js";
 import { ListCustomersQueryDto, UpdateCustomerDto } from "./customers.dto.js";
 import { auditContext } from "../common/audit-context.js";
 
-// Customers are created by requests (same email = same customer), so there is no POST here.
 @Controller("customers")
 export class CustomersController {
   constructor(private readonly customers: CustomersService) {}
 
-  // GET /customers?search=aline&activity=open&sortBy=lastRequestAt&page=1&limit=25
   @Get()
   findAll(@Query() query: ListCustomersQueryDto) {
     return this.customers.findAll(query);
   }
+
+@Get("stats")
+stats() {
+  return this.customers.stats();
+}
 
   @Get(":id")
   findOne(@Param("id", ParseUUIDPipe) id: string) {

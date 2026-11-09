@@ -9,6 +9,6 @@ import { ActivityLogsModule } from "../activityLogs/activity.module.js";
   imports: [TypeOrmModule.forFeature([Customer]), ActivityLogsModule],
   controllers: [CustomersController],
   providers: [CustomersService],
-  exports: [CustomersService], // requests use findOrCreate()
+  exports: [CustomersService], 
 })
 export class CustomersModule {}

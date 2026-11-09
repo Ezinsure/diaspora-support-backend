@@ -6,7 +6,7 @@ import 'dotenv/config';
 import helmet from 'helmet';
 
 const bootstrap = async () => {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule ,{ rawBody: true });
 
   if (process.env.TRUST_PROXY)
     app

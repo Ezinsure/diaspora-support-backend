@@ -3,8 +3,6 @@ import { Audited } from "../common/audited.entity.js";
 import { numeric, PaymentMethod } from "./request.types.js";
 import type { ServiceRequest } from "./request.entity.js";
 
-// One payment for a request. createdBy = who recorded it.
-// Never edited; a mistake is "voided" (soft delete + reason) and recorded again.
 @Entity("payments")
 @Index(["requestId"])
 @Index(["paidAt"])

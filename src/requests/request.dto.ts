@@ -1,13 +1,11 @@
 import { Transform, Type } from 'class-transformer';
 import {
   ArrayMaxSize,
-  ArrayMinSize,
   IsArray,
   IsBoolean,
   IsEmail,
   IsEnum,
   IsIn,
-  IsISO4217CurrencyCode,
   IsNotEmpty,
   IsNumber,
   IsOptional,
@@ -39,9 +37,6 @@ const PHONE = /^\+\d{8,15}$/;
 const PHONE_MSG = 'Phone must be in international format, e.g. +250788123456';
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
 
-// ================= Public form (customer, no login) =================
-
-// POST /public/requests
 export class SubmitRequestDto {
   @Transform(trim)
   @IsString()
@@ -73,7 +68,6 @@ export class SubmitRequestDto {
   @MaxLength(100)
   country?: string | null;
 
-  // e.g. "Europe/Brussels"
   @IsOptional()
   @Transform(emptyToNull)
   @IsTimeZone({ message: 'Choose a valid time zone' })
@@ -85,8 +79,6 @@ export class SubmitRequestDto {
   @MaxLength(1000)
   description: string;
 }
-
-// POST /public/requests/track  -> one request with reference + email
 export class TrackRequestDto {
   @Transform(upper)
   @Matches(/^REQ-\d{4}-\d{4,}$/, {
@@ -99,14 +91,12 @@ export class TrackRequestDto {
   email: string;
 }
 
-// POST /public/requests/access-code -> email a 6-digit code
 export class RequestAccessCodeDto {
   @Transform(lower)
   @IsEmail({}, { message: 'Enter a valid email' })
   email: string;
 }
 
-// POST /public/requests/verify-code -> token + list of requests
 export class VerifyAccessCodeDto {
   @Transform(lower)
   @IsEmail({}, { message: 'Enter a valid email' })
@@ -117,11 +107,7 @@ export class VerifyAccessCodeDto {
   code: string;
 }
 
-// ================= Admin =================
-
-// POST /requests (staff creates it for a customer who called / wrote)
 export class CreateRequestDto extends SubmitRequestDto {
-  // Send the "we received your request" email (default yes)
   @IsOptional()
   @IsBoolean()
   notifyCustomer?: boolean;
@@ -140,7 +126,6 @@ export class UpdateRequestDto {
   @MaxLength(2000)
   description?: string;
 
-  // What the customer must bring (set after the call)
   @IsOptional()
   @IsArray()
   @ArrayMaxSize(30)
@@ -148,20 +133,6 @@ export class UpdateRequestDto {
   @MaxLength(120, { each: true })
   requiredDocuments?: string[];
 
-  // Amount agreed on the phone (when there is no proforma). null = not decided.
-  @IsOptional()
-  @ValidateIf((_, v) => v !== null)
-  @Type(() => Number)
-  @IsNumber({ maxDecimalPlaces: 2 })
-  @Min(0)
-  amountDue?: number | null;
-
-  @IsOptional()
-  @Transform(upper)
-  @IsISO4217CurrencyCode()
-  currency?: string;
-
-  // Customer contact fixes (updates the customer, used by all their requests)
   @IsOptional()
   @Transform(phone)
   @Matches(PHONE, { message: PHONE_MSG })
@@ -214,19 +185,12 @@ export class ProformaItemDto {
   unitPrice: number;
 }
 
-// PUT /requests/:id/proforma
 export class SaveProformaDto {
   @IsArray()
-  @ArrayMinSize(1)
-  @ArrayMaxSize(50)
+  @ArrayMaxSize(49)
   @ValidateNested({ each: true })
   @Type(() => ProformaItemDto)
   items: ProformaItemDto[];
-
-  @IsOptional()
-  @Transform(upper)
-  @IsISO4217CurrencyCode()
-  currency?: string;
 
   @IsOptional()
   @Transform(emptyToNull)
@@ -255,7 +219,7 @@ export class RecordPaymentDto {
   @IsEnum(PaymentMethod)
   method: PaymentMethod;
 
-  // MoMo / bank transaction id (recommended: blocks recording the same payment twice)
+  // MoMo / bank transaction id 
   @IsOptional()
   @Transform(emptyToNull)
   @IsString()
@@ -268,7 +232,6 @@ export class RecordPaymentDto {
   @Matches(PHONE, { message: PHONE_MSG })
   payerPhone?: string | null;
 
-  // When it was paid (ISO date-time). Default: now
   @IsOptional()
   @Type(() => Date)
   paidAt?: Date;
@@ -279,13 +242,12 @@ export class RecordPaymentDto {
   @MaxLength(1000)
   note?: string | null;
 
-  // Email the receipt (default yes)
   @IsOptional()
   @IsBoolean()
   sendReceipt?: boolean;
 }
 
-// DELETE /requests/:id/payments/:paymentId  { "reason": "Recorded twice" }
+// DELETE /requests/:id/payments/:paymentId
 export class VoidPaymentDto {
   @Transform(trimText)
   @IsString()
@@ -294,7 +256,7 @@ export class VoidPaymentDto {
   reason: string;
 }
 
-// POST /requests/:id/documents (multipart) -> optional label for the files
+// POST /requests/:id/documents 
 export class UploadDocumentsDto {
   @IsOptional()
   @Transform(emptyToNull)
@@ -303,7 +265,15 @@ export class UploadDocumentsDto {
   label?: string | null;
 }
 
-// GET /requests?search=&status=&serviceId=&customerId=&payment=&from=&to=&sortBy=&order=&page=&limit=
+// POST /public/requests/documents 
+export class PublicUploadDocumentsDto extends TrackRequestDto {
+  @IsOptional()
+  @Transform(trimText)
+  @IsString()
+  @MaxLength(120)
+  label?: string;
+}
+
 export class ListRequestsQueryDto extends ListQueryDto {
   @IsOptional()
   @IsEnum(RequestStatus)
@@ -336,3 +306,47 @@ export class RequestStatsQueryDto {
   @Matches(DAY, { message: 'to must be YYYY-MM-DD' })
   to?: string;
 }
+// IremboPay 
+
+// POST /requests/:id/payment-links  { "channel": "card" | "momo" }
+export class CreatePaymentLinkDto {
+  @IsIn(["card", "momo"], { message: "channel must be card or momo" })
+  channel: "card" | "momo";
+}
+
+// POST /requests/:id/payment-links/momo  { "phone": "0788123456" }
+export class MomoPushDto {
+  @Transform(trim)
+  @IsString()
+  @IsNotEmpty({ message: "Enter the MoMo number" })
+  @MaxLength(20)
+  phone: string;
+}
+
+// POST /public/payments/lookup  (website: reference + the email used on the request)
+export class PaymentLookupDto {
+  @Transform(trim)
+  @IsString()
+  @IsNotEmpty({ message: "Enter your request number" })
+  @MaxLength(30)
+  reference: string;
+
+  @Transform(trim)
+  @IsEmail({}, { message: "Enter the email you used for the request" })
+  @MaxLength(255)
+  email: string;
+}
+
+// POST /public/payments/pay
+export class PublicPayDto extends PaymentLookupDto {
+  @IsIn(["card", "momo"], { message: "Choose how to pay" })
+  channel: "card" | "momo";
+
+  // MoMo only
+  @IsOptional()
+  @Transform(trim)
+  @IsString()
+  @MaxLength(20)
+  phone?: string;
+}
+

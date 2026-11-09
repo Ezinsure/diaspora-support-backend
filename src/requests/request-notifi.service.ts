@@ -1,22 +1,20 @@
-import { Injectable, Logger } from "@nestjs/common";
-import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
-import { MailService } from "../mail/mail.service.js";
-import { CompanyService } from "../company/company.service.js";
-import { ServiceRequest } from "./request.entity.js";
-import { Payment } from "./payment.entity.js";
+import { Injectable, Logger } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { MailService } from '../mail/mail.service.js';
+import { CompanyService } from '../company/company.service.js';
+import { ServiceRequest } from './request.entity.js';
+import { Payment } from './payment.entity.js';
 import {
   accessCodeEmail,
   type Brand,
+  customerDocumentsAdminEmail,
   newRequestAdminEmail,
   proformaEmail,
   receiptEmail,
   requestReceivedEmail,
   statusChangedEmail,
-} from "./request-emails.js";
-
-// All request emails in one place. Called AFTER the database work is saved,
-// and never throws: an email problem must not undo a request or a payment.
+} from './request-emails.js';
 @Injectable()
 export class RequestNotificationsService {
   private readonly logger = new Logger(RequestNotificationsService.name);
@@ -24,7 +22,8 @@ export class RequestNotificationsService {
   constructor(
     private readonly mail: MailService,
     private readonly company: CompanyService,
-    @InjectRepository(ServiceRequest) private readonly requests: Repository<ServiceRequest>,
+    @InjectRepository(ServiceRequest)
+    private readonly requests: Repository<ServiceRequest>,
     @InjectRepository(Payment) private readonly payments: Repository<Payment>,
   ) {}
 
@@ -32,13 +31,23 @@ export class RequestNotificationsService {
   private async brand(): Promise<Brand> {
     try {
       const c = await this.company.get();
-      if (c) return { name: c.name, logoUrl: c.logoUrl, email: c.email, phone: c.phone, websiteUrl: c.websiteUrl };
+      if (c)
+        return {
+          name: c.name,
+          logoUrl: c.logoUrl,
+          email: c.email,
+          phone: c.phone,
+          websiteUrl: c.websiteUrl,
+        };
     } catch {}
-    return { name: process.env.COMPANY_NAME ?? "Diaspora Services" };
+    return { name: process.env.COMPANY_NAME ?? 'Diaspora Services' };
   }
 
   private loadRequest(id: string) {
-    return this.requests.findOne({ where: { id }, relations: { customer: true } });
+    return this.requests.findOne({
+      where: { id },
+      relations: { customer: true },
+    });
   }
 
   private async safely(label: string, work: () => Promise<boolean>) {
@@ -52,16 +61,25 @@ export class RequestNotificationsService {
 
   // New request -> customer ("we received it") + team ("new request")
   async requestCreated(requestId: string, notifyCustomer = true) {
-    return this.safely("request created", async () => {
+    return this.safely('request created', async () => {
       const r = await this.loadRequest(requestId);
       if (!r) return false;
       const brand = await this.brand();
 
       const jobs: Promise<boolean>[] = [];
-      if (notifyCustomer) jobs.push(this.mail.send({ to: r.customer.email, ...requestReceivedEmail(brand, r) }));
+      if (notifyCustomer)
+        jobs.push(
+          this.mail.send({
+            to: r.customer.email,
+            ...requestReceivedEmail(brand, r),
+          }),
+        );
 
       const admins = this.mail.adminEmails();
-      if (admins.length) jobs.push(this.mail.send({ to: admins, ...newRequestAdminEmail(brand, r) }));
+      if (admins.length)
+        jobs.push(
+          this.mail.send({ to: admins, ...newRequestAdminEmail(brand, r) }),
+        );
 
       const results = await Promise.all(jobs);
       return results.every(Boolean);
@@ -69,32 +87,64 @@ export class RequestNotificationsService {
   }
 
   async statusChanged(requestId: string) {
-    return this.safely("status changed", async () => {
+    return this.safely('status changed', async () => {
       const r = await this.loadRequest(requestId);
       if (!r) return false;
-      return this.mail.send({ to: r.customer.email, ...statusChangedEmail(await this.brand(), r) });
+      return this.mail.send({
+        to: r.customer.email,
+        ...statusChangedEmail(await this.brand(), r),
+      });
     });
   }
 
   async proforma(requestId: string) {
-    return this.safely("proforma", async () => {
+    return this.safely('proforma', async () => {
       const r = await this.loadRequest(requestId);
       if (!r?.proforma) return false;
-      return this.mail.send({ to: r.customer.email, ...proformaEmail(await this.brand(), r, r.proforma) });
+      return this.mail.send({
+        to: r.customer.email,
+        ...proformaEmail(await this.brand(), r, r.proforma),
+      });
     });
   }
 
   async receipt(paymentId: string) {
-    return this.safely("receipt", async () => {
+    return this.safely('receipt', async () => {
       const pay = await this.payments.findOne({ where: { id: paymentId } });
       if (!pay) return false;
       const r = await this.loadRequest(pay.requestId);
       if (!r) return false;
-      return this.mail.send({ to: r.customer.email, ...receiptEmail(await this.brand(), r, pay) });
+      return this.mail.send({
+        to: r.customer.email,
+        ...receiptEmail(await this.brand(), r, pay),
+      });
     });
   }
 
   async accessCode(email: string, code: string) {
-    return this.safely("access code", async () => this.mail.send({ to: email, ...accessCodeEmail(await this.brand(), code) }));
+    return this.safely('access code', async () =>
+      this.mail.send({
+        to: email,
+        ...accessCodeEmail(await this.brand(), code),
+      }),
+    );
+  }
+
+  // Customer uploaded documents on /track
+  async customerUploaded(
+    requestId: string,
+    files: { name: string; size: number }[],
+    label?: string | null,
+  ) {
+    return this.safely('customer upload', async () => {
+      const admins = this.mail.adminEmails();
+      if (!admins.length) return false;
+      const r = await this.loadRequest(requestId);
+      if (!r) return false;
+      return this.mail.send({
+        to: admins,
+        ...customerDocumentsAdminEmail(await this.brand(), r, files, label),
+      });
+    });
   }
 }

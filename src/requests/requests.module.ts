@@ -17,10 +17,11 @@ import { PublicRequestsController } from "./public-request.controller.js";
 import { ActivityLogsModule } from "../activityLogs/activity.module.js";
 import { CustomersModule } from "../customers/customers.module.js";
 import { CompanyModule } from "../company/company.module.js";
+import { ServiceFee } from "../service-fees/fees.entity.js";
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([ServiceRequest, RequestDocument, Payment, AccessCode, Service, Customer, Counter]),
+    TypeOrmModule.forFeature([ServiceRequest, RequestDocument, Payment, AccessCode, Service, Customer, Counter ,ServiceFee]),
     ActivityLogsModule,
     CustomersModule,
     CompanyModule, // company name / logo in emails

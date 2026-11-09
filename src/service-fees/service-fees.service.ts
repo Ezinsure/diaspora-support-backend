@@ -128,11 +128,10 @@ export class ServiceFeesService {
     return [...groups.values()];
   }
 
-  // Website: one active fee
   async findPublicOne(id: string) {
     const fee = await this.repo
       .createQueryBuilder('fee')
-      .innerJoin('fee.service', 'service')
+      .leftJoin('fee.service', 'service')
       .select([
         'fee.id',
         'fee.name',
@@ -140,10 +139,9 @@ export class ServiceFeesService {
         'fee.currency',
         'fee.description',
       ])
-      .where(
-        'fee.id = :id AND fee.isActive = true AND service.isActive = true',
-        { id },
-      )
+      .where('fee.id = :id', { id })
+      .andWhere('fee.isActive = true')
+      .andWhere('(fee.serviceId IS NULL OR service.isActive = true)')
       .getOne();
 
     if (!fee) throw new NotFoundException('Fee not found');

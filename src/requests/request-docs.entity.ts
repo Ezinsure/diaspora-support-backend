@@ -13,11 +13,9 @@ export class RequestDocument extends Audited {
   @JoinColumn({ name: "requestId" })
   request: Relation<ServiceRequest>;
 
-  // e.g. "National ID" (optional label chosen when uploading)
   @Column({ type: "varchar", length: 120, nullable: true })
   label: string | null;
 
-  // Original file name
   @Column({ type: "varchar", length: 255 })
   fileName: string;
 
@@ -27,7 +25,6 @@ export class RequestDocument extends Audited {
   @Column({ type: "int" })
   size: number;
 
-  // Where it is in the storage bucket (never sent as a public URL)
   @Column({ type: "varchar", length: 400, unique: true, select: false })
   storagePath: string;
 }

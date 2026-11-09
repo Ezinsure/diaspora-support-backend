@@ -1,11 +1,24 @@
-import { Transform } from "class-transformer";
-import { IsEmail, IsIn, IsNotEmpty, IsOptional, IsString, IsTimeZone, Matches, MaxLength } from "class-validator";
-import { ListQueryDto } from "../common/query.js";
+import { Transform } from 'class-transformer';
+import {
+  IsEmail,
+  IsIn,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  IsTimeZone,
+  Matches,
+  MaxLength,
+} from 'class-validator';
+import { ListQueryDto } from '../common/query.js';
 
-const trim = ({ value }: any) => (typeof value === "string" ? value.trim().replace(/\s+/g, " ") : value);
-const lower = ({ value }: any) => (typeof value === "string" ? value.trim().toLowerCase() : value);
-const phone = ({ value }: any) => (typeof value === "string" ? value.replace(/[\s()-]/g, "") : value);
-const emptyToNull = ({ value }: any) => (typeof value === "string" ? value.trim() || null : value);
+const trim = ({ value }: any) =>
+  typeof value === 'string' ? value.trim().replace(/\s+/g, ' ') : value;
+const lower = ({ value }: any) =>
+  typeof value === 'string' ? value.trim().toLowerCase() : value;
+const phone = ({ value }: any) =>
+  typeof value === 'string' ? value.replace(/[\s()-]/g, '') : value;
+const emptyToNull = ({ value }: any) =>
+  typeof value === 'string' ? value.trim() || null : value;
 
 export class UpdateCustomerDto {
   @IsOptional()
@@ -30,7 +43,9 @@ export class UpdateCustomerDto {
 
   @IsOptional()
   @Transform(phone)
-  @Matches(/^\+\d{8,15}$/, { message: "Phone must be in international format, e.g. +250788123456" })
+  @Matches(/^\+\d{8,15}$/, {
+    message: 'Phone must be in international format, e.g. +250788888888',
+  })
   phone?: string;
 
   @IsOptional()
@@ -45,7 +60,6 @@ export class UpdateCustomerDto {
   timezone?: string | null;
 }
 
-
 export class ListCustomersQueryDto extends ListQueryDto {
   @IsOptional()
   @IsString()
@@ -53,10 +67,10 @@ export class ListCustomersQueryDto extends ListQueryDto {
   country?: string;
 
   @IsOptional()
-  @IsIn(["open", "to_pay"])
-  activity?: "open" | "to_pay";
+  @IsIn(['open', 'to_pay', 'none'])
+  activity?: 'open' | 'to_pay' | 'none';
 
   @IsOptional()
-  @IsIn(["createdAt", "lastName", "lastRequestAt", "requestCount"])
-  sortBy: string = "lastRequestAt";
+  @IsIn(['createdAt', 'lastName', 'lastRequestAt', 'requestCount'])
+  sortBy: string = 'lastRequestAt';
 }
