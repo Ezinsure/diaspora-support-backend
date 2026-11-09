@@ -38,11 +38,14 @@ lerna-debug.log*
 !.vscode/launch.json
 !.vscode/extensions.json
 
-# dotenv environment variable files
+# dotenv environment variable files 
 .env
-.env.test.local
-.env.production.local
-.env.local
+.env.*
+!.env.example
+
+# Uploaded files: customers' passports, IDs, logos 
+/storage
+/uploads
 
 # temp directory
 .temp
@@ -57,5 +60,3 @@ pids
 # Diagnostic reports (https://nodejs.org/api/report.html)
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 
-# lock files 
-pnpm-lock.yaml
